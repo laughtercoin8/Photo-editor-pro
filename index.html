@@ -1,0 +1,182 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pro Photo Editor</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      color: white;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 80px;
+      background: #1f1f1f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0;
+    }
+    .sidebar button {
+      background: none;
+      border: none;
+      color: white;
+      margin: 10px 0;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      padding: 20px;
+    }
+    canvas {
+      border: 1px solid #444;
+      background: white;
+      margin-top: 20px;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+    }
+    .toolbar button, .toolbar input {
+      padding: 8px 12px;
+      background: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    input[type="color"] {
+      padding: 0;
+      width: 40px;
+      height: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <button onclick="uploadImage()" title="Upload">&#128247;</button>
+    <button onclick="addText()" title="Add Text">&#9998;</button>
+    <button onclick="applyFilter('grayscale')" title="Grayscale">&#9728;</button>
+    <button onclick="applyFilter('sepia')" title="Sepia">&#9788;</button>
+    <button onclick="undo()" title="Undo">&#8630;</button>
+    <button onclick="redo()" title="Redo">&#8631;</button>
+    <button onclick="download()" title="Download">&#128229;</button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none" />
+  </div>
+
+  <div class="main">
+    <h2>Photo Editor Pro</h2>
+    <div class="toolbar">
+      <input type="color" id="textColor" value="#ffffff" title="Text Color" />
+      <input type="text" id="textInput" placeholder="Your Text..." />
+      <button onclick="confirmText()">Add Text</button>
+    </div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+
+  <script>
+    const canvas = new fabric.Canvas('canvas');
+    let history = [], redoHistory = [];
+
+    function uploadImage() {
+      document.getElementById('fileInput').click();
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      const reader = new FileReader();
+      reader.onload = function (f) {
+        const imgObj = new Image();
+        imgObj.src = f.target.result;
+        imgObj.onload = function () {
+          const img = new fabric.Image(imgObj);
+          img.scaleToWidth(600);
+          canvas.centerObject(img);
+          canvas.add(img);
+          saveState();
+        };
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    function addText() {
+      document.getElementById('textInput').focus();
+    }
+
+    function confirmText() {
+      const txt = document.getElementById('textInput').value;
+      const color = document.getElementById('textColor').value;
+      if (txt.trim() !== '') {
+        const text = new fabric.Text(txt, {
+          left: 100,
+          top: 100,
+          fill: color,
+          fontSize: 30
+        });
+        canvas.add(text);
+        saveState();
+        document.getElementById('textInput').value = '';
+      }
+    }
+
+    function applyFilter(type) {
+      const obj = canvas.getActiveObject() || canvas.item(canvas.size() - 1);
+      if (!obj || obj.type !== 'image') return;
+
+      switch (type) {
+        case 'grayscale':
+          obj.filters = [new fabric.Image.filters.Grayscale()];
+          break;
+        case 'sepia':
+          obj.filters = [new fabric.Image.filters.Sepia()];
+          break;
+      }
+      obj.applyFilters();
+      canvas.renderAll();
+      saveState();
+    }
+
+    function download() {
+      const link = document.createElement('a');
+      link.download = 'photo-edited.png';
+      link.href = canvas.toDataURL({ format: 'png' });
+      link.click();
+    }
+
+    function saveState() {
+      redoHistory = [];
+      history.push(JSON.stringify(canvas));
+    }
+
+    function undo() {
+      if (history.length > 1) {
+        redoHistory.push(history.pop());
+        canvas.loadFromJSON(history[history.length - 1], () => canvas.renderAll());
+      }
+    }
+
+    function redo() {
+      if (redoHistory.length > 0) {
+        const state = redoHistory.pop();
+        history.push(state);
+        canvas.loadFromJSON(state, () => canvas.renderAll());
+      }
+    }
+
+    // Auto save on object modifications
+    canvas.on('object:added', saveState);
+  </script>
+</body>
+</html>
