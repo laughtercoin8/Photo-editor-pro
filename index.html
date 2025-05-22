@@ -3,119 +3,162 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Online Photo Editor</title>
+  <title>AI Photo Editor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f3f3f3;
-      padding: 20px;
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #eceff1;
     }
-
     .container {
-      max-width: 800px;
-      margin: auto;
-      background: white;
-      padding: 20px;
+      max-width: 1000px;
+      margin: 30px auto;
+      background: #ffffff;
       border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
-
+    h1 {
+      text-align: center;
+      color: #333;
+    }
     #canvas {
       max-width: 100%;
-      border: 1px solid #ccc;
       margin-top: 20px;
+      border: 2px dashed #ccc;
+      border-radius: 10px;
     }
-
     .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       margin-top: 20px;
     }
-
+    .controls label {
+      margin: 10px;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+    }
     .controls input[type=range] {
       width: 150px;
     }
-
     button {
-      margin: 5px;
-      padding: 10px 15px;
+      margin: 10px;
+      padding: 10px 20px;
+      background: #2196f3;
+      border: none;
+      color: white;
+      border-radius: 5px;
       cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #1976d2;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Online Photo Editor</h1>
+    <h1>AI Photo Editor</h1>
     <input type="file" id="upload" accept="image/*" />
     <canvas id="canvas"></canvas>
 
     <div class="controls">
-      <label>Brightness: 
+      <label>Brightness
         <input type="range" id="brightness" min="0" max="200" value="100" />
       </label>
-      <label>Contrast: 
+      <label>Contrast
         <input type="range" id="contrast" min="0" max="200" value="100" />
       </label>
-      <br/>
-      <button onclick="applyFilter('grayscale')">Grayscale</button>
-      <button onclick="applyFilter('sepia')">Sepia</button>
-      <button onclick="applyFilter('blur')">Blur</button>
-      <button onclick="resetImage()">Reset</button>
-      <button onclick="downloadImage()">Download</button>
+      <label>Saturation
+        <input type="range" id="saturation" min="0" max="200" value="100" />
+      </label>
+      <label>Blur
+        <input type="range" id="blur" min="0" max="10" value="0" />
+      </label>
+    </div>
+
+    <div class="controls">
+      <button onclick="applyFilter('grayscale(100%)')">Grayscale</button>
+      <button onclick="applyFilter('sepia(100%)')">Sepia</button>
+      <button onclick="applyFilter('invert(100%)')">Invert</button>
+      <button onclick="applyFilter('hue-rotate(90deg)')">Hue Rotate</button>
+      <button onclick="reset()">Reset</button>
+      <button onclick="download()">Download</button>
     </div>
   </div>
 
   <script>
-    let canvas = document.getElementById("canvas");
-    let ctx = canvas.getContext("2d");
-    let originalImage = null;
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    let img = new Image();
+    let originalData = null;
 
-    document.getElementById("upload").addEventListener("change", function (e) {
-      let file = e.target.files[0];
-      let reader = new FileReader();
-
-      reader.onload = function (event) {
-        let img = new Image();
-        img.onload = function () {
+    document.getElementById("upload").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        img = new Image();
+        img.onload = function() {
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
-          originalImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
-    document.getElementById("brightness").addEventListener("input", applyAdjustments);
-    document.getElementById("contrast").addEventListener("input", applyAdjustments);
+    const sliders = ["brightness", "contrast", "saturation", "blur"];
+    sliders.forEach(id => {
+      document.getElementById(id).addEventListener("input", applyAdjustments);
+    });
 
     function applyAdjustments() {
-      if (!originalImage) return;
+      if (!originalData) return;
+      ctx.putImageData(originalData, 0, 0);
 
       let brightness = document.getElementById("brightness").value;
       let contrast = document.getElementById("contrast").value;
+      let saturation = document.getElementById("saturation").value;
+      let blur = document.getElementById("blur").value;
 
-      ctx.putImageData(originalImage, 0, 0);
-      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
-      ctx.drawImage(canvas, 0, 0);
+      ctx.filter = `
+        brightness(${brightness}%)
+        contrast(${contrast}%)
+        saturate(${saturation}%)
+        blur(${blur}px)
+      `;
+      ctx.drawImage(img, 0, 0);
       ctx.filter = "none";
     }
 
-    function applyFilter(type) {
-      ctx.filter = type === "blur" ? "blur(2px)" : `${type}(100%)`;
-      ctx.drawImage(canvas, 0, 0);
+    function applyFilter(filter) {
+      if (!originalData) return;
+      ctx.putImageData(originalData, 0, 0);
+      ctx.filter = filter;
+      ctx.drawImage(img, 0, 0);
       ctx.filter = "none";
     }
 
-    function resetImage() {
-      if (originalImage) {
-        ctx.putImageData(originalImage, 0, 0);
-        document.getElementById("brightness").value = 100;
-        document.getElementById("contrast").value = 100;
-      }
+    function reset() {
+      if (!originalData) return;
+      ctx.putImageData(originalData, 0, 0);
+      document.getElementById("brightness").value = 100;
+      document.getElementById("contrast").value = 100;
+      document.getElementById("saturation").value = 100;
+      document.getElementById("blur").value = 0;
     }
 
-    function downloadImage() {
-      let link = document.createElement("a");
+    function download() {
+      const link = document.createElement("a");
       link.download = "edited-image.png";
       link.href = canvas.toDataURL();
       link.click();
@@ -123,3 +166,4 @@
   </script>
 </body>
 </html>
+
