@@ -1,194 +1,125 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Photoshop Editor</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --dark-bg: #2d2d2d;
-            --panel-bg: #3d3d3d;
-            --toolbar-bg: #252525;
-            --active-color: #0078d7;
-        }
-        body {
-            margin: 0;
-            font-family: 'Roboto', sans-serif;
-            background: var(--dark-bg);
-            color: white;
-            height: 100vh;
-            display: grid;
-            grid-template-columns: 50px auto 200px;
-            grid-template-rows: 40px auto 150px;
-            overflow: hidden;
-        }
-        /* [Previous CSS styles remain the same...] */
-        .font-selector {
-            padding: 5px;
-            border-radius: 3px;
-            background: #4d4d4d;
-            color: white;
-            border: 1px solid #666;
-        }
-        .effect-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 10px;
-        }
-        .effect-buttons button {
-            padding: 5px 8px;
-            background: #555;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Online Photo Editor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f3f3f3;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    #canvas {
+      max-width: 100%;
+      border: 1px solid #ccc;
+      margin-top: 20px;
+    }
+
+    .controls {
+      margin-top: 20px;
+    }
+
+    .controls input[type=range] {
+      width: 150px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <!-- [Previous HTML structure remains the same...] -->
+  <div class="container">
+    <h1>Online Photo Editor</h1>
+    <input type="file" id="upload" accept="image/*" />
+    <canvas id="canvas"></canvas>
 
-    <!-- Updated Tool Options -->
-    <div class="tool-options" id="tool-options">
-        <!-- Dynamic options will appear here -->
+    <div class="controls">
+      <label>Brightness: 
+        <input type="range" id="brightness" min="0" max="200" value="100" />
+      </label>
+      <label>Contrast: 
+        <input type="range" id="contrast" min="0" max="200" value="100" />
+      </label>
+      <br/>
+      <button onclick="applyFilter('grayscale')">Grayscale</button>
+      <button onclick="applyFilter('sepia')">Sepia</button>
+      <button onclick="applyFilter('blur')">Blur</button>
+      <button onclick="resetImage()">Reset</button>
+      <button onclick="downloadImage()">Download</button>
     </div>
+  </div>
 
-    <script>
-        // [Previous initialization code...]
+  <script>
+    let canvas = document.getElementById("canvas");
+    let ctx = canvas.getContext("2d");
+    let originalImage = null;
 
-        // Enhanced Tool Functionality
-        document.querySelectorAll('.tool-panel button').forEach(button => {
-            button.addEventListener('click', function() {
-                document.querySelector('.tool-panel button.active').classList.remove('active');
-                this.classList.add('active');
-                state.activeTool = this.id.replace('-tool', '');
-                updateToolOptions();
-            });
-        });
+    document.getElementById("upload").addEventListener("change", function (e) {
+      let file = e.target.files[0];
+      let reader = new FileReader();
 
-        function updateToolOptions() {
-            const optionsBar = document.getElementById('tool-options');
-            optionsBar.innerHTML = '';
+      reader.onload = function (event) {
+        let img = new Image();
+        img.onload = function () {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          originalImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
 
-            switch(state.activeTool) {
-                case 'text':
-                    optionsBar.innerHTML = `
-                        <select class="font-selector" id="font-family">
-                            <option value="Arial">Arial</option>
-                            <option value="Times New Roman">Times New Roman</option>
-                            <option value="Courier New">Courier New</option>
-                            <option value="Georgia">Georgia</option>
-                        </select>
-                        <input type="number" id="font-size" value="24" min="8" max="120">
-                        <input type="color" id="text-color" value="#000000">
-                        <button onclick="addTextToCanvas()">Add Text</button>
-                    `;
-                    break;
-                
-                case 'brush':
-                    optionsBar.innerHTML = `
-                        Brush Size: <input type="range" id="brush-size" min="1" max="50" value="5">
-                        Color: <input type="color" id="brush-color" value="#000000">
-                        Opacity: <input type="range" id="brush-opacity" min="1" max="100" value="100">
-                    `;
-                    break;
-                
-                case 'filter':
-                    optionsBar.innerHTML = `
-                        <div class="effect-buttons">
-                            <button onclick="applyFilter('grayscale')">Grayscale</button>
-                            <button onclick="applyFilter('sepia')">Sepia</button>
-                            <button onclick="applyFilter('invert')">Invert</button>
-                            <button onclick="applyFilter('blur')">Blur</button>
-                            <button onclick="applyFilter('brightness')">Brightness</button>
-                            <button onclick="applyFilter('contrast')">Contrast</button>
-                        </div>
-                    `;
-                    break;
-            }
-        }
+    document.getElementById("brightness").addEventListener("input", applyAdjustments);
+    document.getElementById("contrast").addEventListener("input", applyAdjustments);
 
-        // Enhanced Text Functionality
-        function addTextToCanvas() {
-            const fontFamily = document.getElementById('font-family').value;
-            const fontSize = parseInt(document.getElementById('font-size').value);
-            const textColor = document.getElementById('text-color').value;
+    function applyAdjustments() {
+      if (!originalImage) return;
 
-            const text = new fabric.Textbox('Edit me', {
-                left: 100,
-                top: 100,
-                fontFamily: fontFamily,
-                fontSize: fontSize,
-                fill: textColor,
-                width: 200,
-                selectable: true
-            });
-            canvas.add(text);
-            saveState();
-            updateLayersPanel();
-        }
+      let brightness = document.getElementById("brightness").value;
+      let contrast = document.getElementById("contrast").value;
 
-        // Advanced Filter Effects
-        function applyFilter(type) {
-            const activeObject = canvas.getActiveObject();
-            if (!activeObject || !activeObject.filters) return;
+      ctx.putImageData(originalImage, 0, 0);
+      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+      ctx.drawImage(canvas, 0, 0);
+      ctx.filter = "none";
+    }
 
-            switch(type) {
-                case 'grayscale':
-                    activeObject.filters.push(new fabric.Image.filters.Grayscale());
-                    break;
-                case 'sepia':
-                    activeObject.filters.push(new fabric.Image.filters.Sepia());
-                    break;
-                case 'invert':
-                    activeObject.filters.push(new fabric.Image.filters.Invert());
-                    break;
-                case 'blur':
-                    activeObject.filters.push(new fabric.Image.filters.Blur({ blur: 0.2 }));
-                    break;
-                case 'brightness':
-                    activeObject.filters.push(new fabric.Image.filters.Brightness({ brightness: 0.1 }));
-                    break;
-                case 'contrast':
-                    activeObject.filters.push(new fabric.Image.filters.Contrast({ contrast: 0.1 }));
-                    break;
-            }
+    function applyFilter(type) {
+      ctx.filter = type === "blur" ? "blur(2px)" : `${type}(100%)`;
+      ctx.drawImage(canvas, 0, 0);
+      ctx.filter = "none";
+    }
 
-            activeObject.applyFilters();
-            canvas.renderAll();
-            saveState();
-        }
+    function resetImage() {
+      if (originalImage) {
+        ctx.putImageData(originalImage, 0, 0);
+        document.getElementById("brightness").value = 100;
+        document.getElementById("contrast").value = 100;
+      }
+    }
 
-        // Brush Drawing Functionality
-        let isDrawing = false;
-        canvas.on('mouse:down', function(o) {
-            if (state.activeTool === 'brush') {
-                isDrawing = true;
-                const pointer = canvas.getPointer(o.e);
-                const brushSize = parseInt(document.getElementById('brush-size').value);
-                const brushColor = document.getElementById('brush-color').value;
-                
-                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-                canvas.freeDrawingBrush.width = brushSize;
-                canvas.freeDrawingBrush.color = brushColor;
-                canvas.isDrawingMode = true;
-            }
-        });
-
-        canvas.on('mouse:up', function() {
-            if (state.activeTool === 'brush') {
-                isDrawing = false;
-                canvas.isDrawingMode = false;
-                saveState();
-                updateLayersPanel();
-            }
-        });
-
-        // [Rest of the previous JavaScript code...]
-    </script>
+    function downloadImage() {
+      let link = document.createElement("a");
+      link.download = "edited-image.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+  </script>
 </body>
 </html>
