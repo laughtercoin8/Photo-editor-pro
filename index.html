@@ -1,182 +1,442 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pro Photo Editor</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: #121212;
-      color: white;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
-    .sidebar {
-      width: 80px;
-      background: #1f1f1f;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 0;
-    }
-    .sidebar button {
-      background: none;
-      border: none;
-      color: white;
-      margin: 10px 0;
-      font-size: 24px;
-      cursor: pointer;
-    }
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: start;
-      padding: 20px;
-    }
-    canvas {
-      border: 1px solid #444;
-      background: white;
-      margin-top: 20px;
-    }
-    .toolbar {
-      display: flex;
-      gap: 10px;
-    }
-    .toolbar button, .toolbar input {
-      padding: 8px 12px;
-      background: #333;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-    input[type="color"] {
-      padding: 0;
-      width: 40px;
-      height: 40px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photoshop Web Clone</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
+    <style>
+        :root {
+            --dark-bg: #2d2d2d;
+            --panel-bg: #3d3d3d;
+            --toolbar-bg: #252525;
+            --active-color: #0078d7;
+        }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--dark-bg);
+            color: white;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 50px auto 200px;
+            grid-template-rows: 40px auto 150px;
+            overflow: hidden;
+        }
+        /* Photoshop-like UI Structure */
+        .menu-bar {
+            grid-column: 1 / span 3;
+            background: var(--toolbar-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .tool-panel {
+            background: var(--toolbar-bg);
+            padding: 10px 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-right: 1px solid #1a1a1a;
+        }
+        .tool-panel button {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .tool-panel button:hover {
+            background: #4d4d4d;
+        }
+        .tool-panel button.active {
+            background: var(--active-color);
+        }
+        .canvas-container {
+            position: relative;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #545454;
+        }
+        #canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: white;
+        }
+        .right-panel {
+            background: var(--panel-bg);
+            border-left: 1px solid #1a1a1a;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .panel-tabs button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ccc;
+            padding: 8px;
+            cursor: pointer;
+        }
+        .panel-tabs button.active {
+            background: var(--panel-bg);
+            color: white;
+            border-bottom: 2px solid var(--active-color);
+        }
+        .panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 10px;
+        }
+        .layers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .layer-item {
+            background: #4d4d4d;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .layer-item.active {
+            background: var(--active-color);
+        }
+        .status-bar {
+            grid-column: 1 / span 3;
+            background: var(--toolbar-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-top: 1px solid #1a1a1a;
+            font-size: 12px;
+        }
+        /* Tool Options Bar */
+        .tool-options {
+            position: absolute;
+            top: 45px;
+            left: 60px;
+            background: var(--toolbar-bg);
+            padding: 5px 10px;
+            border-radius: 0 0 3px 3px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        /* Color Picker */
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .color-box {
+            width: 30px;
+            height: 30px;
+            border: 2px solid white;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-
-  <div class="sidebar">
-    <button onclick="uploadImage()" title="Upload">&#128247;</button>
-    <button onclick="addText()" title="Add Text">&#9998;</button>
-    <button onclick="applyFilter('grayscale')" title="Grayscale">&#9728;</button>
-    <button onclick="applyFilter('sepia')" title="Sepia">&#9788;</button>
-    <button onclick="undo()" title="Undo">&#8630;</button>
-    <button onclick="redo()" title="Redo">&#8631;</button>
-    <button onclick="download()" title="Download">&#128229;</button>
-    <input type="file" id="fileInput" accept="image/*" style="display:none" />
-  </div>
-
-  <div class="main">
-    <h2>Photo Editor Pro</h2>
-    <div class="toolbar">
-      <input type="color" id="textColor" value="#ffffff" title="Text Color" />
-      <input type="text" id="textInput" placeholder="Your Text..." />
-      <button onclick="confirmText()">Add Text</button>
+    <!-- Photoshop-like UI Structure -->
+    <div class="menu-bar">
+        <span>File</span>
+        <span>Edit</span>
+        <span>Image</span>
+        <span>Layer</span>
+        <span>Select</span>
+        <span>Filter</span>
+        <span>View</span>
+        <span>Window</span>
+        <span>Help</span>
     </div>
-    <canvas id="canvas" width="800" height="600"></canvas>
-  </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <!-- Left Tool Panel -->
+    <div class="tool-panel">
+        <button id="move-tool" title="Move Tool (V)" class="active">↔</button>
+        <button id="selection-tool" title="Rectangular Marquee Tool (M)">□</button>
+        <button id="crop-tool" title="Crop Tool (C)">✂</button>
+        <button id="brush-tool" title="Brush Tool (B)">🖌</button>
+        <button id="text-tool" title="Text Tool (T)">T</button>
+        <button id="shape-tool" title="Shape Tool (U)">◇</button>
+        <div class="color-picker">
+            <div id="foreground-color" class="color-box" style="background: #000000;"></div>
+            <div id="background-color" class="color-box" style="background: #ffffff;"></div>
+        </div>
+    </div>
 
-  <script>
-    const canvas = new fabric.Canvas('canvas');
-    let history = [], redoHistory = [];
+    <!-- Main Canvas Area -->
+    <div class="canvas-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <div class="tool-options" id="tool-options">
+            <!-- Tool options will appear here dynamically -->
+        </div>
+    </div>
 
-    function uploadImage() {
-      document.getElementById('fileInput').click();
-    }
+    <!-- Right Panel -->
+    <div class="right-panel">
+        <div class="panel-tabs">
+            <button class="active" data-panel="layers">Layers</button>
+            <button data-panel="history">History</button>
+            <button data-panel="properties">Properties</button>
+        </div>
+        <div class="panel-content">
+            <div id="layers-panel" class="panel-section">
+                <div class="layers-list" id="layers-list">
+                    <!-- Layers will be added here dynamically -->
+                </div>
+                <button id="add-layer" style="margin-top: 10px;">+ Add Layer</button>
+            </div>
+            <div id="history-panel" class="panel-section" style="display: none;">
+                <div id="history-list"></div>
+            </div>
+            <div id="properties-panel" class="panel-section" style="display: none;">
+                <div id="properties-content"></div>
+            </div>
+        </div>
+    </div>
 
-    document.getElementById('fileInput').addEventListener('change', function (e) {
-      const reader = new FileReader();
-      reader.onload = function (f) {
-        const imgObj = new Image();
-        imgObj.src = f.target.result;
-        imgObj.onload = function () {
-          const img = new fabric.Image(imgObj);
-          img.scaleToWidth(600);
-          canvas.centerObject(img);
-          canvas.add(img);
-          saveState();
-        };
-      };
-      reader.readAsDataURL(e.target.files[0]);
-    });
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span>Document: 800 x 600 px</span>
+        <span style="margin-left: auto;">Zoom: 100%</span>
+    </div>
 
-    function addText() {
-      document.getElementById('textInput').focus();
-    }
+    <!-- Hidden File Input -->
+    <input type="file" id="file-input" accept="image/*" style="display: none;">
 
-    function confirmText() {
-      const txt = document.getElementById('textInput').value;
-      const color = document.getElementById('textColor').value;
-      if (txt.trim() !== '') {
-        const text = new fabric.Text(txt, {
-          left: 100,
-          top: 100,
-          fill: color,
-          fontSize: 30
+    <script>
+        // Initialize Fabric.js Canvas
+        const canvas = new fabric.Canvas('canvas', {
+            preserveObjectStacking: true,
+            selection: true
         });
-        canvas.add(text);
-        saveState();
-        document.getElementById('textInput').value = '';
-      }
-    }
 
-    function applyFilter(type) {
-      const obj = canvas.getActiveObject() || canvas.item(canvas.size() - 1);
-      if (!obj || obj.type !== 'image') return;
+        // App State
+        const state = {
+            activeTool: 'move',
+            foregroundColor: '#000000',
+            backgroundColor: '#ffffff',
+            brushSize: 5,
+            history: [],
+            historyIndex: -1,
+            maxHistory: 50
+        };
 
-      switch (type) {
-        case 'grayscale':
-          obj.filters = [new fabric.Image.filters.Grayscale()];
-          break;
-        case 'sepia':
-          obj.filters = [new fabric.Image.filters.Sepia()];
-          break;
-      }
-      obj.applyFilters();
-      canvas.renderAll();
-      saveState();
-    }
+        // Initialize Color Pickers
+        const foregroundPickr = Pickr.create({
+            el: '#foreground-color',
+            theme: 'classic',
+            default: state.foregroundColor,
+            components: {
+                preview: true,
+                opacity: true,
+                hue: true,
+                interaction: {
+                    hex: true,
+                    rgba: true,
+                    hsla: true,
+                    input: true
+                }
+            }
+        });
 
-    function download() {
-      const link = document.createElement('a');
-      link.download = 'photo-edited.png';
-      link.href = canvas.toDataURL({ format: 'png' });
-      link.click();
-    }
+        const backgroundPickr = Pickr.create({
+            el: '#background-color',
+            theme: 'classic',
+            default: state.backgroundColor,
+            components: {
+                preview: true,
+                opacity: true,
+                hue: true,
+                interaction: {
+                    hex: true,
+                    rgba: true,
+                    hsla: true,
+                    input: true
+                }
+            }
+        });
 
-    function saveState() {
-      redoHistory = [];
-      history.push(JSON.stringify(canvas));
-    }
+        // Event Listeners
+        document.getElementById('add-layer').addEventListener('click', addNewLayer);
+        document.getElementById('file-input').addEventListener('change', handleImageUpload);
 
-    function undo() {
-      if (history.length > 1) {
-        redoHistory.push(history.pop());
-        canvas.loadFromJSON(history[history.length - 1], () => canvas.renderAll());
-      }
-    }
+        // Tool Buttons
+        document.querySelectorAll('.tool-panel button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelector('.tool-panel button.active').classList.remove('active');
+                this.classList.add('active');
+                state.activeTool = this.id.replace('-tool', '');
+                updateToolOptions();
+            });
+        });
 
-    function redo() {
-      if (redoHistory.length > 0) {
-        const state = redoHistory.pop();
-        history.push(state);
-        canvas.loadFromJSON(state, () => canvas.renderAll());
-      }
-    }
+        // Panel Tabs
+        document.querySelectorAll('.panel-tabs button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelector('.panel-tabs button.active').classList.remove('active');
+                this.classList.add('active');
+                
+                document.querySelectorAll('.panel-section').forEach(section => {
+                    section.style.display = 'none';
+                });
+                
+                document.getElementById(`${this.dataset.panel}-panel`).style.display = 'block';
+            });
+        });
 
-    // Auto save on object modifications
-    canvas.on('object:added', saveState);
-  </script>
+        // Core Functions
+        function addNewLayer() {
+            const layer = new fabric.Rect({
+                width: 100,
+                height: 100,
+                fill: 'rgba(255,255,255,0.5)',
+                left: 100,
+                top: 100,
+                selectable: true
+            });
+            canvas.add(layer);
+            saveState();
+            updateLayersPanel();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                fabric.Image.fromURL(event.target.result, function(img) {
+                    img.set({
+                        left: 100,
+                        top: 100,
+                        selectable: true
+                    });
+                    canvas.add(img);
+                    saveState();
+                    updateLayersPanel();
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateToolOptions() {
+            const optionsBar = document.getElementById('tool-options');
+            optionsBar.innerHTML = '';
+
+            switch(state.activeTool) {
+                case 'brush':
+                    optionsBar.innerHTML = `
+                        <span>Brush Size:</span>
+                        <input type="range" id="brush-size" min="1" max="50" value="${state.brushSize}">
+                        <span>Opacity:</span>
+                        <input type="range" id="brush-opacity" min="1" max="100" value="100">
+                    `;
+                    break;
+                case 'text':
+                    optionsBar.innerHTML = `
+                        <span>Font:</span>
+                        <select id="text-font">
+                            <option>Arial</option>
+                            <option>Times New Roman</option>
+                            <option>Courier New</option>
+                        </select>
+                        <span>Size:</span>
+                        <input type="number" id="text-size" value="24" min="8" max="144">
+                    `;
+                    break;
+                // Add more tool options as needed
+            }
+        }
+
+        function saveState() {
+            // Trim history if needed
+            if (state.historyIndex < state.history.length - 1) {
+                state.history = state.history.slice(0, state.historyIndex + 1);
+            }
+
+            // Add new state
+            state.history.push(JSON.stringify(canvas));
+            state.historyIndex++;
+
+            // Limit history size
+            if (state.history.length > state.maxHistory) {
+                state.history.shift();
+                state.historyIndex--;
+            }
+
+            updateHistoryPanel();
+        }
+
+        function updateLayersPanel() {
+            const layersList = document.getElementById('layers-list');
+            layersList.innerHTML = '';
+
+            canvas.getObjects().forEach((obj, index) => {
+                const layerItem = document.createElement('div');
+                layerItem.className = 'layer-item';
+                if (obj === canvas.getActiveObject()) {
+                    layerItem.classList.add('active');
+                }
+
+                layerItem.innerHTML = `
+                    <span>Layer ${index + 1}</span>
+                    <span style="margin-left: auto;">${obj.type}</span>
+                `;
+
+                layerItem.addEventListener('click', () => {
+                    canvas.setActiveObject(obj);
+                    canvas.renderAll();
+                    updateLayersPanel();
+                });
+
+                layersList.appendChild(layerItem);
+            });
+        }
+
+        function updateHistoryPanel() {
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+
+            state.history.forEach((state, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.textContent = `Action ${index + 1}`;
+                historyItem.style.padding = '5px';
+                historyItem.style.cursor = 'pointer';
+                historyItem.style.borderBottom = '1px solid #4d4d4d';
+
+                if (index === state.historyIndex) {
+                    historyItem.style.background = '#4d4d4d';
+                }
+
+                historyItem.addEventListener('click', () => {
+                    state.historyIndex = index;
+                    canvas.loadFromJSON(state, () => {
+                        canvas.renderAll();
+                        updateLayersPanel();
+                    });
+                    updateHistoryPanel();
+                });
+
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        // Initialize
+        addNewLayer(); // Add default layer
+        updateToolOptions();
+    </script>
 </body>
 </html>
